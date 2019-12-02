@@ -1,0 +1,6 @@
+# Output
+out/
+
+# IDE
+.idea/
+*.iml
