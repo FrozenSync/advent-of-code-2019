@@ -3,7 +3,7 @@ package com.github.frozensync.day5
 import java.util.*
 
 enum class Opcode {
-    ADDITION, MULTIPLICATION, INPUT, OUTPUT, TERMINATION;
+    ADDITION, MULTIPLICATION, INPUT, OUTPUT, JUMP_IF_TRUE, JUMP_IF_FALSE, LESS_THAN, EQUALS, TERMINATION;
 
     companion object {
         fun of(opcode: Int) = when (opcode) {
@@ -11,6 +11,10 @@ enum class Opcode {
             2 -> MULTIPLICATION
             3 -> INPUT
             4 -> OUTPUT
+            5 -> JUMP_IF_TRUE
+            6 -> JUMP_IF_FALSE
+            7 -> LESS_THAN
+            8 -> EQUALS
             99 -> TERMINATION
             else -> throw IllegalArgumentException("Invalid opcode: $opcode")
         }
@@ -46,8 +50,8 @@ object IntcodeComputer {
         val instruction = readInstruction(program[pointer])
         if (instruction.opcode == Opcode.TERMINATION) return
 
-        val instructionLength = executeInstruction(instruction, program, pointer)
-        execute(program, pointer + instructionLength)
+        val newPointer = executeInstruction(instruction, program, pointer)
+        execute(program, newPointer)
     }
 
     private fun readInstruction(intcode: Int): Instruction {
@@ -68,7 +72,7 @@ object IntcodeComputer {
                 val destination = program[pointer + 3]
                 program[destination] = result
 
-                4
+                pointer + 4
             }
             Opcode.MULTIPLICATION -> {
                 val x = deriveParameter(pointer + 1, instruction.modeOfFirstParameter, program)
@@ -78,22 +82,60 @@ object IntcodeComputer {
                 val destination = program[pointer + 3]
                 program[destination] = result
 
-                4
+                pointer + 4
             }
             Opcode.INPUT -> {
                 val destination = program[pointer + 1]
                 val inputValue = inputReader.nextInt()
                 program[destination] = inputValue
 
-                2
+                pointer + 2
             }
             Opcode.OUTPUT -> {
                 val output = deriveParameter(pointer + 1, instruction.modeOfFirstParameter, program)
-                println("$output (pointer: $pointer)")
+                println(output)
 
-                2
+                pointer + 2
             }
-            Opcode.TERMINATION -> 0
+            Opcode.JUMP_IF_TRUE -> {
+                val jump = deriveParameter(pointer + 1, instruction.modeOfFirstParameter, program)
+
+                if (jump == 0) {
+                    pointer + 3
+                } else {
+                    deriveParameter(pointer + 2, instruction.modeOfSecondParameter, program)
+                }
+            }
+            Opcode.JUMP_IF_FALSE -> {
+                val jump = deriveParameter(pointer + 1, instruction.modeOfFirstParameter, program)
+
+                if (jump == 0) {
+                    deriveParameter(pointer + 2, instruction.modeOfSecondParameter, program)
+                } else {
+                    pointer + 3
+                }
+            }
+            Opcode.LESS_THAN -> {
+                val x = deriveParameter(pointer + 1, instruction.modeOfFirstParameter, program)
+                val y = deriveParameter(pointer + 2, instruction.modeOfFirstParameter, program)
+                val result = if (x < y) 1 else 0
+
+                val destination = program[pointer + 3]
+                program[destination] = result
+
+                pointer + 4
+            }
+            Opcode.EQUALS -> {
+                val x = deriveParameter(pointer + 1, instruction.modeOfFirstParameter, program)
+                val y = deriveParameter(pointer + 2, instruction.modeOfFirstParameter, program)
+                val result = if (x == y) 1 else 0
+
+                val destination = program[pointer + 3]
+                program[destination] = result
+
+                pointer + 4
+            }
+            Opcode.TERMINATION -> throw IllegalStateException("Termination code not caught at pointer $pointer")
         }
 
     private fun deriveParameter(indexOfParameter: Int, mode: ParameterMode, program: IntArray) = when (mode) {
